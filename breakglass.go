@@ -93,7 +93,7 @@ func main() {
 	// It will be cleaned up on process exit because each gokrazy
 	// process uses a non-shared mount namespace.
 	if err := syscall.Mount("tmpfs", unpackDir, "tmpfs", syscall.MS_NOSUID|syscall.MS_NODEV|syscall.MS_RELATIME, "size=500M"); err != nil {
-		log.Fatal("tmpfs on %s: %v", unpackDir, err)
+		log.Fatalf("tmpfs on %s: %v", unpackDir, err)
 	}
 
 	if err := os.Chdir(unpackDir); err != nil {
