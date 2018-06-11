@@ -149,7 +149,7 @@ func (s *session) request(req *ssh.Request) error {
 			}
 
 			go io.Copy(s.channel, stdout)
-			go io.Copy(s.channel, stderr)
+			go io.Copy(s.channel.Stderr(), stderr)
 			go func() {
 				io.Copy(stdin, s.channel)
 				stdin.Close()
