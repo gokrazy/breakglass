@@ -161,6 +161,10 @@ func (s *session) request(req *ssh.Request) error {
 				return err
 			}
 
+			// See https://tools.ietf.org/html/rfc4254#section-6.10
+			if _, err := s.channel.SendRequest("exit-status", false /* wantReply */, []byte("\x00\x00\x00\x00")); err != nil {
+				return err
+			}
 			s.channel.Close()
 			return nil
 		}
