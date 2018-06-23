@@ -106,10 +106,8 @@ func (s *session) request(req *ssh.Request) error {
 		s.env = append(s.env, fmt.Sprintf("%s=%s", name, value))
 
 	case "shell":
-		// as per https://tools.ietf.org/html/rfc4254#section-6.5,
-		// shell requests don’t carry a payload, and we don’t have a
-		// default shell, so decline the request
-		return fmt.Errorf("shell requests unsupported, use exec")
+		req.Payload = []byte("\x00\x00\x00\x00sh")
+		fallthrough
 
 	case "exec":
 		if got, want := len(req.Payload), 4; got < want {

@@ -50,9 +50,10 @@ $ cd /tmp/busybox-1.22.0
 $ file busybox
 busybox: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked,
 for GNU/Linux 3.7.0, BuildID[sha1]=c9e20e9849ed0ca3c2bd058427ac31a27c008efe, stripped
-$ tar cf breakglass.tar busybox
+$ ln -s busybox sh
+$ tar cf breakglass.tar --dereference sh
 $ scp breakglass.tar gokrazy:
-$ ssh gokrazy -t ./busybox sh
+$ ssh gokrazy
 /tmp/breakglass564067692 # df -h
 Filesystem                Size      Used Available Use% Mounted on
 /dev/root                60.5M     60.5M         0 100% /
