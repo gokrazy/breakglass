@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -45,6 +46,32 @@ func handleChannel(newChannel ssh.NewChannel) {
 			}
 		}
 	}(channel, requests)
+}
+
+func expandPath(env []string) []string {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return env
+	}
+	found := false
+	for idx, val := range env {
+		parts := strings.Split(val, "=")
+		if len(parts) < 2 {
+			continue // malformed entry
+		}
+		key := parts[0]
+		if key != "PATH" {
+			continue
+		}
+		val := strings.Join(parts[1:], "=")
+		env[idx] = fmt.Sprintf("%s=%s:%s", key, pwd, val)
+		found = true
+	}
+	if !found {
+		const busyboxDefaultPATH = "/sbin:/usr/sbin:/bin:/usr/bin"
+		env = append(env, fmt.Sprintf("PATH=%s:%s", pwd, busyboxDefaultPATH))
+	}
+	return env
 }
 
 type session struct {
@@ -124,7 +151,7 @@ func (s *session) request(req *ssh.Request) error {
 		}
 
 		cmd := exec.Command(cmdline[0], cmdline[1:]...)
-		cmd.Env = s.env
+		cmd.Env = expandPath(s.env)
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 
 		if s.ttyf == nil {

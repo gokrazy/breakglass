@@ -100,6 +100,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if err := os.Setenv("PATH", unpackDir+":"+os.Getenv("PATH")); err != nil {
+		log.Fatal(err)
+	}
+
 	accept := func(listener net.Listener) {
 		for {
 			conn, err := listener.Accept()
