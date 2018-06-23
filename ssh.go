@@ -150,7 +150,13 @@ func (s *session) request(req *ssh.Request) error {
 			return scpSink(s.channel, req, cmdline)
 		}
 
-		cmd := exec.Command(cmdline[0], cmdline[1:]...)
+		var cmd *exec.Cmd
+		if _, err := exec.LookPath("sh"); err == nil {
+			cmd = exec.Command("sh", "-c", string(req.Payload[4:]))
+		} else {
+			cmd = exec.Command(cmdline[0], cmdline[1:]...)
+		}
+		log.Printf("Starting cmd %q", cmd.Args)
 		cmd.Env = expandPath(s.env)
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 
