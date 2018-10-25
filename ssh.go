@@ -194,13 +194,16 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 			}()
 
 			go func() {
-				// TODO: correctly pass on the exit code, currently it is always 255
 				if err := cmd.Wait(); err != nil {
 					log.Printf("err: %v", err)
 				}
+				status := make([]byte, 4)
+				if ws, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok {
+					binary.BigEndian.PutUint32(status, uint32(ws.ExitStatus()))
+				}
 
 				// See https://tools.ietf.org/html/rfc4254#section-6.10
-				if _, err := s.channel.SendRequest("exit-status", false /* wantReply */, []byte("\x00\x00\x00\x00")); err != nil {
+				if _, err := s.channel.SendRequest("exit-status", false /* wantReply */, status); err != nil {
 					log.Printf("err2: %v", err)
 				}
 				s.channel.Close()
