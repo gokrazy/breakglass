@@ -86,67 +86,81 @@ type session struct {
 	channel ssh.Channel
 }
 
-func stringFromPayload(payload []byte, offset int) (string, int, error) {
-	if got, want := len(payload), offset+4; got < want {
-		return "", 0, fmt.Errorf("request payload too short: got %d, want >= %d", got, want)
-	}
-	namelen := binary.BigEndian.Uint32(payload[offset : offset+4])
-	if got, want := len(payload), offset+4+int(namelen); got < want {
-		return "", 0, fmt.Errorf("request payload too short: got %d, want >= %d", got, want)
-	}
-	name := payload[offset+4 : offset+4+int(namelen)]
-	return string(name), offset + 4 + int(namelen), nil
+// ptyreq is a Pseudo-Terminal request as per RFC4254 6.2.
+type ptyreq struct {
+	TERM            string // e.g. vt100
+	WidthCharacters uint32
+	HeightRows      uint32
+	WidthPixels     uint32
+	HeightPixels    uint32
+	Modes           string
+}
+
+// windowchange is a Window Dimension Change as per RFC4254 6.7.
+type windowchange struct {
+	WidthColumns uint32
+	HeightRows   uint32
+	WidthPixels  uint32
+	HeightPixels uint32
+}
+
+// env is a Environment Variable request as per RFC4254 6.4.
+type env struct {
+	VariableName  string
+	VariableValue string
+}
+
+// execR is a Command request as per RFC4254 6.5.
+type execR struct {
+	Command string
 }
 
 func (s *session) request(ctx context.Context, req *ssh.Request) error {
 	switch req.Type {
 	case "pty-req":
+		var r ptyreq
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
+			return err
+		}
+
 		var err error
 		s.ptyf, s.ttyf, err = pty.Open()
 		if err != nil {
 			return err
 		}
-		_, next, err := stringFromPayload(req.Payload, 0)
-		if err != nil {
-			return err
-		}
-		if got, want := len(req.Payload), next+4+4; got < want {
-			return fmt.Errorf("request payload too short: got %d, want >= %d", got, want)
-		}
 
-		w, h := parseDims(req.Payload[next:])
-		SetWinsize(s.ptyf.Fd(), w, h)
+		SetWinsize(s.ptyf.Fd(), r.WidthCharacters, r.HeightRows)
 		// Responding true (OK) here will let the client
 		// know we have a pty ready for input
 		req.Reply(true, nil)
 
 	case "window-change":
-		w, h := parseDims(req.Payload)
-		SetWinsize(s.ptyf.Fd(), w, h)
+		var r windowchange
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
+			return err
+		}
+
+		SetWinsize(s.ptyf.Fd(), r.WidthColumns, r.HeightRows)
 
 	case "env":
-		name, next, err := stringFromPayload(req.Payload, 0)
-		if err != nil {
+		var r env
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
 			return err
 		}
 
-		value, _, err := stringFromPayload(req.Payload, next)
-		if err != nil {
-			return err
-		}
-
-		s.env = append(s.env, fmt.Sprintf("%s=%s", name, value))
+		s.env = append(s.env, fmt.Sprintf("%s=%s", r.VariableName, r.VariableValue))
 
 	case "shell":
 		req.Payload = []byte("\x00\x00\x00\x00sh")
 		fallthrough
 
 	case "exec":
-		if got, want := len(req.Payload), 4; got < want {
-			return fmt.Errorf("exec request payload too short: got %d, want >= %d", got, want)
+		var r execR
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
+			return err
 		}
 
-		cmdline, err := shlex.Split(string(req.Payload[4:]))
+		cmdline, err := shlex.Split(r.Command)
 		if err != nil {
 			return err
 		}
@@ -157,7 +171,7 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 
 		var cmd *exec.Cmd
 		if _, err := exec.LookPath("sh"); err == nil {
-			cmd = exec.CommandContext(ctx, "sh", "-c", string(req.Payload[4:]))
+			cmd = exec.CommandContext(ctx, "sh", "-c", r.Command)
 		} else {
 			cmd = exec.CommandContext(ctx, cmdline[0], cmdline[1:]...)
 		}
@@ -251,13 +265,6 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 	}
 
 	return nil
-}
-
-// parseDims extracts terminal dimensions (width x height) from the provided buffer.
-func parseDims(b []byte) (uint32, uint32) {
-	w := binary.BigEndian.Uint32(b)
-	h := binary.BigEndian.Uint32(b[4:])
-	return w, h
 }
 
 // Winsize stores the Height and Width of a terminal.
