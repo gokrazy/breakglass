@@ -79,6 +79,9 @@ func scpSink(channel ssh.Channel, req *ssh.Request, cmdline []string) error {
 				if err := os.MkdirAll(filepath.Dir(h.Name), 0700); err != nil {
 					return err
 				}
+				if strings.HasSuffix(h.Name, "/") {
+					continue // directory, don’t try to OpenFile() it
+				}
 				mode := h.FileInfo().Mode() & os.ModePerm
 				out, err := os.OpenFile(h.Name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
 				if err != nil {
