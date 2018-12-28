@@ -151,7 +151,7 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 		s.env = append(s.env, fmt.Sprintf("%s=%s", r.VariableName, r.VariableValue))
 
 	case "shell":
-		req.Payload = []byte("\x00\x00\x00\x00sh")
+		req.Payload = []byte("\x00\x00\x00\x02sh")
 		fallthrough
 
 	case "exec":
