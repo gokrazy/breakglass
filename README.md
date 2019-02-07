@@ -19,18 +19,18 @@ Add the `github.com/gokrazy/breakglass` package to your `gokr-packer`
 command, e.g.:
 
 ```
-gokr-packer -overwrite=/dev/sdb \
+gokr-packer -overwrite=/dev/sdx \
   github.com/gokrazy/hello \
   github.com/gokrazy/breakglass
 ```
 
 On the permanent file system of your gokrazy installation, create a
 host key and an authorized keys file. Assuming you mounted the
-permanent file system at `/media/sdb4`:
+permanent file system at `/media/sdx4`:
 
 ```
-sudo ssh-keygen -N '' -t rsa -f /media/sdb4/breakglass.host_key
-sudo install -m 600 ~/.ssh/authorized_keys /media/sdb4/breakglass.authorized_keys
+sudo ssh-keygen -N '' -t rsa -f /media/sdx4/breakglass.host_key
+sudo install -m 600 ~/.ssh/authorized_keys /media/sdx4/breakglass.authorized_keys
 ```
 
 ## Usage
