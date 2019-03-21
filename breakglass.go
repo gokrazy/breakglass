@@ -3,12 +3,15 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/gokrazy/gokrazy"
@@ -34,13 +37,19 @@ func loadAuthorizedKeys(path string) (map[string]bool, error) {
 
 	result := make(map[string]bool)
 
-	for len(b) > 0 {
-		pubKey, _, _, rest, err := ssh.ParseAuthorizedKey(b)
+	s := bufio.NewScanner(bytes.NewReader(b))
+	for s.Scan() {
+		if tr := strings.TrimSpace(s.Text()); tr == "" || strings.HasPrefix(tr, "#") {
+			continue
+		}
+		pubKey, _, _, _, err := ssh.ParseAuthorizedKey(s.Bytes())
 		if err != nil {
 			return nil, err
 		}
 		result[string(pubKey.Marshal())] = true
-		b = rest
+	}
+	if err := s.Err(); err != nil {
+		return nil, err
 	}
 
 	return result, nil
