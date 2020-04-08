@@ -72,6 +72,9 @@ func main() {
 
 	authorizedKeys, err := loadAuthorizedKeys(*authorizedKeysPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("see https://github.com/gokrazy/breakglass#installation")
+		}
 		log.Fatal(err)
 	}
 
@@ -87,6 +90,9 @@ func main() {
 
 	signer, err := loadHostKey(*hostKeyPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("see https://github.com/gokrazy/breakglass#installation")
+		}
 		log.Fatal(err)
 	}
 	config.AddHostKey(signer)
