@@ -19,9 +19,10 @@ import (
 	"net/http/cookiejar"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gokrazy/internal/config"
 )
 
 type bg struct {
@@ -169,11 +170,7 @@ func breakglass() error {
 	}
 	hostname := flag.Arg(0)
 
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return err
-	}
-	b, err := ioutil.ReadFile(filepath.Join(dir, "gokrazy", "http-password.txt"))
+	b, err := config.HostnameSpecific(hostname).ReadFile("http-password.txt")
 	if err != nil {
 		return err
 	}

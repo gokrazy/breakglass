@@ -4,6 +4,9 @@ github.com/gokrazy/gokrazy v0.0.0-20190321081644-520b8ca41de7 h1:lpARmqp1bhgN6Co
 github.com/gokrazy/gokrazy v0.0.0-20190321081644-520b8ca41de7/go.mod h1:YbpshsItGhDXnytFAvMTRvZvGkVSpZV/4mwxQsvqzHg=
 github.com/gokrazy/internal v0.0.0-20190630091051-de21a662e434 h1:3NgMIyCbCOWhjO/9/yIloXsQCuP6MLolya2SItd1NCM=
 github.com/gokrazy/internal v0.0.0-20190630091051-de21a662e434/go.mod h1:c7C8E8dlEJG/vdLtGN5NJPdbKNzZi/puMD0sKC346TI=
+github.com/gokrazy/internal v0.0.0-20200527063429-7e4057347a0f h1:7XojstPtQ87IJ9VZbFuKP7tFQDo1DXZU9WNx6IHS+5A=
+github.com/gokrazy/internal v0.0.0-20200527163528-2cb9182fefff h1:NKE8iZv7t84+Tv29zmSe5FdjlQY1P8CX1D2PbTQTvBY=
+github.com/gokrazy/internal v0.0.0-20200527163528-2cb9182fefff/go.mod h1:LA5TQy7LcvYGQOy75tkrYkFUhbV2nl5qEBP47PSi2JA=
 github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf h1:7+FW5aGwISbqUtkfmIpZJGRgNFg2ioYPvFaUxdqpDsg=
 github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf/go.mod h1:RpwtwJQFrIEPstU94h88MWPXP2ektJZ8cZ0YntAmXiE=
 github.com/kr/pty v1.1.8 h1:AkaSdXYQOWeaO3neb8EM634ahkXXe3jYbVh/F9lq+GI=
@@ -17,4 +20,5 @@ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20190412213103-97732733099d h1:+R4KGOnez64A81RvjARKc4UT5/tI9ujCIVX+P5KiHuI=
 golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200406155108-e3b113bbe6a4/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
