@@ -21,6 +21,7 @@ command, e.g.:
 ```
 gokr-packer -overwrite=/dev/sdx \
   github.com/gokrazy/hello \
+  github.com/gokrazy/serial-busybox \
   github.com/gokrazy/breakglass
 ```
 
@@ -34,6 +35,27 @@ sudo install -m 600 ~/.ssh/id_*.pub /media/sdx4/breakglass.authorized_keys
 ```
 
 ## Usage
+
+Be sure to install the convenience SSH wrapper tool on the host:
+
+```
+go install github.com/gokrazy/breakglass/cmd/breakglass
+```
+
+### Start a shell
+
+If you have `github.com/gokrazy/serial-busybox` installed on your gokrazy
+installation, you can directly start a shell without having to upload your own
+tools. Run:
+
+```
+breakglass gokrazy
+```
+
+If you prefer, you can also manually start `breakglass` in the gokrazy web
+interface and then use `ssh gokrazy` to log in.
+
+### Run your own tools
 
 1. Create a tarball containing your statically linked arm64 binaries
    and any other files you’ll need.
@@ -52,8 +74,7 @@ busybox: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically li
 for GNU/Linux 3.7.0, BuildID[sha1]=c9e20e9849ed0ca3c2bd058427ac31a27c008efe, stripped
 $ ln -s busybox sh
 $ tar cf breakglass.tar --dereference sh
-$ scp breakglass.tar gokrazy:
-$ ssh gokrazy
+$ breakglass -debug_tarball_pattern=debug.tar gokrazy
 /tmp/breakglass564067692 # df -h
 Filesystem                Size      Used Available Use% Mounted on
 /dev/root                60.5M     60.5M         0 100% /
