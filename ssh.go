@@ -115,6 +115,17 @@ type execR struct {
 	Command string
 }
 
+func findShell() string {
+	if path, err := exec.LookPath("sh"); err == nil {
+		return path
+	}
+	const wellKnownSerialShell = "/tmp/serial-busybox/ash"
+	if _, err := os.Stat(wellKnownSerialShell); err == nil {
+		return wellKnownSerialShell
+	}
+	return ""
+}
+
 func (s *session) request(ctx context.Context, req *ssh.Request) error {
 	switch req.Type {
 	case "pty-req":
@@ -170,8 +181,8 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 		}
 
 		var cmd *exec.Cmd
-		if _, err := exec.LookPath("sh"); err == nil {
-			cmd = exec.CommandContext(ctx, "sh", "-c", r.Command)
+		if shell := findShell(); shell != "" {
+			cmd = exec.CommandContext(ctx, shell, "-c", r.Command)
 		} else {
 			cmd = exec.CommandContext(ctx, cmdline[0], cmdline[1:]...)
 		}
