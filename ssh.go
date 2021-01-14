@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/gokrazy/gokrazy"
 	"github.com/google/shlex"
 	"github.com/kr/pty"
 	"golang.org/x/crypto/ssh"
@@ -45,6 +46,17 @@ func forwardingAllowed(addr string, port uint32) bool {
 	return addr == "localhost"
 }
 
+func parseAddr(addr string) net.IP {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		if ips, err := net.LookupIP(addr); err == nil {
+			ip = ips[0] // use first address found
+		}
+	}
+
+	return ip
+}
+
 func handleTCPIP(newChan ssh.NewChannel) {
 	d := localForwardChannelData{}
 	if err := ssh.Unmarshal(newChan.ExtraData(), &d); err != nil {
@@ -52,12 +64,29 @@ func handleTCPIP(newChan ssh.NewChannel) {
 		return
 	}
 
-	if !forwardingAllowed(d.DestAddr, d.DestPort) {
+	var ip net.IP
+	switch *forwarding {
+	case "local":
+		if ip := parseAddr(d.DestAddr); ip != nil && !ip.IsLoopback() {
+			newChan.Reject(ssh.Prohibited, "port forwarding not allowed for address")
+			return
+		}
+	case "remote":
+		if ip := parseAddr(d.DestAddr); ip != nil && !gokrazy.IsInPrivateNet(ip) {
+			newChan.Reject(ssh.Prohibited, "port forwarding not allowed for address")
+			return
+		}
+	default:
 		newChan.Reject(ssh.Prohibited, "port forwarding is disabled")
 		return
 	}
 
-	dest := net.JoinHostPort(d.DestAddr, strconv.FormatInt(int64(d.DestPort), 10))
+	// fallthrough for forwarding enabled, validate ip != nil once
+	if ip == nil {
+		newChan.Reject(ssh.Prohibited, "host not reachable")
+	}
+
+	dest := net.JoinHostPort(d.DestAddr, strconv.Itoa(int(d.DestPort)))
 
 	var dialer net.Dialer
 	dconn, err := dialer.DialContext(context.Background(), "tcp", dest)
