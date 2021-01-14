@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -18,12 +20,72 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func handleChannel(newChannel ssh.NewChannel) {
-	if t := newChannel.ChannelType(); t != "session" {
-		newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %q", t))
+func handleChannel(newChan ssh.NewChannel) {
+	switch t := newChan.ChannelType(); t {
+	case "session":
+		handleSession(newChan)
+	case "direct-tcpip":
+		handleTCPIP(newChan)
+	default:
+		newChan.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %q", t))
+		return
+	}
+}
+
+// direct-tcpip data struct as specified in RFC4254, Section 7.2
+type localForwardChannelData struct {
+	DestAddr string
+	DestPort uint32
+
+	OriginAddr string
+	OriginPort uint32
+}
+
+func forwardingAllowed(addr string, port uint32) bool {
+	return addr == "localhost"
+}
+
+func handleTCPIP(newChan ssh.NewChannel) {
+	d := localForwardChannelData{}
+	if err := ssh.Unmarshal(newChan.ExtraData(), &d); err != nil {
+		newChan.Reject(ssh.ConnectionFailed, "error parsing forward data: "+err.Error())
 		return
 	}
 
+	if !forwardingAllowed(d.DestAddr, d.DestPort) {
+		newChan.Reject(ssh.Prohibited, "port forwarding is disabled")
+		return
+	}
+
+	dest := net.JoinHostPort(d.DestAddr, strconv.FormatInt(int64(d.DestPort), 10))
+
+	var dialer net.Dialer
+	dconn, err := dialer.DialContext(context.Background(), "tcp", dest)
+	if err != nil {
+		newChan.Reject(ssh.ConnectionFailed, err.Error())
+		return
+	}
+
+	ch, reqs, err := newChan.Accept()
+	if err != nil {
+		dconn.Close()
+		return
+	}
+	go ssh.DiscardRequests(reqs)
+
+	go func() {
+		defer ch.Close()
+		defer dconn.Close()
+		io.Copy(ch, dconn)
+	}()
+	go func() {
+		defer ch.Close()
+		defer dconn.Close()
+		io.Copy(dconn, ch)
+	}()
+}
+
+func handleSession(newChannel ssh.NewChannel) {
 	channel, requests, err := newChannel.Accept()
 	if err != nil {
 		log.Printf("Could not accept channel (%s)", err)
