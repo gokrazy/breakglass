@@ -33,19 +33,6 @@ func handleChannel(newChan ssh.NewChannel) {
 	}
 }
 
-// direct-tcpip data struct as specified in RFC4254, Section 7.2
-type localForwardChannelData struct {
-	DestAddr string
-	DestPort uint32
-
-	OriginAddr string
-	OriginPort uint32
-}
-
-func forwardingAllowed(addr string, port uint32) bool {
-	return addr == "localhost"
-}
-
 func parseAddr(addr string) net.IP {
 	ip := net.ParseIP(addr)
 	if ip == nil {
@@ -55,6 +42,17 @@ func parseAddr(addr string) net.IP {
 	}
 
 	return ip
+}
+
+// Forwarding ported from https://github.com/gliderlabs/ssh (BSD3 License)
+
+// direct-tcpip data struct as specified in RFC4254, Section 7.2
+type localForwardChannelData struct {
+	DestAddr string
+	DestPort uint32
+
+	OriginAddr string
+	OriginPort uint32
 }
 
 func handleTCPIP(newChan ssh.NewChannel) {
