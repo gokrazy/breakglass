@@ -69,7 +69,7 @@ func handleTCPIP(newChan ssh.NewChannel) {
 			newChan.Reject(ssh.Prohibited, "port forwarding not allowed for address")
 			return
 		}
-	case "remote":
+	case "private-network":
 		if ip := parseAddr(d.DestAddr); ip != nil && !gokrazy.IsInPrivateNet(ip) {
 			newChan.Reject(ssh.Prohibited, "port forwarding not allowed for address")
 			return
@@ -84,7 +84,7 @@ func handleTCPIP(newChan ssh.NewChannel) {
 		newChan.Reject(ssh.Prohibited, "host not reachable")
 	}
 
-	dest := net.JoinHostPort(d.DestAddr, strconv.Itoa(int(d.DestPort)))
+	dest := net.JoinHostPort(ip.String(), strconv.Itoa(int(d.DestPort)))
 
 	var dialer net.Dialer
 	dconn, err := dialer.DialContext(context.Background(), "tcp", dest)
