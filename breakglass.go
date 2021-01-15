@@ -30,7 +30,7 @@ var (
 
 	forwarding = flag.String("forward",
 		"",
-		"allow port forwarding. Use `local` for loopback interfaces and `private-network` for private networks")
+		"allow port forwarding. Use `loopback` for loopback interfaces and `private-network` for private networks")
 )
 
 func loadAuthorizedKeys(path string) (map[string]bool, error) {

@@ -64,7 +64,7 @@ func handleTCPIP(newChan ssh.NewChannel) {
 
 	var ip net.IP
 	switch *forwarding {
-	case "local":
+	case "loopback":
 		if ip := parseAddr(d.DestAddr); ip != nil && !ip.IsLoopback() {
 			newChan.Reject(ssh.Prohibited, "port forwarding not allowed for address")
 			return
