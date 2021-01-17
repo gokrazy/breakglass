@@ -65,12 +65,12 @@ func handleTCPIP(newChan ssh.NewChannel) {
 	var ip net.IP
 	switch *forwarding {
 	case "loopback":
-		if ip := parseAddr(d.DestAddr); ip != nil && !ip.IsLoopback() {
+		if ip = parseAddr(d.DestAddr); ip != nil && !ip.IsLoopback() {
 			newChan.Reject(ssh.Prohibited, "port forwarding not allowed for address")
 			return
 		}
 	case "private-network":
-		if ip := parseAddr(d.DestAddr); ip != nil && !gokrazy.IsInPrivateNet(ip) {
+		if ip = parseAddr(d.DestAddr); ip != nil && !gokrazy.IsInPrivateNet(ip) {
 			newChan.Reject(ssh.Prohibited, "port forwarding not allowed for address")
 			return
 		}
