@@ -5,6 +5,10 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -68,6 +72,31 @@ func loadHostKey(path string) (ssh.Signer, error) {
 	return ssh.ParsePrivateKey(b)
 }
 
+func createHostKey(path string) (ssh.Signer, error) {
+	key, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0400)
+	if err == nil {
+		defer file.Close()
+
+		var pkcs8 []byte
+		if pkcs8, err = x509.MarshalPKCS8PrivateKey(key); err == nil {
+			err = pem.Encode(file, &pem.Block{
+				Type:  "PRIVATE KEY",
+				Bytes: pkcs8,
+			})
+		}
+	}
+	if err != nil {
+		log.Printf("could not save generated host key: %v", err)
+	}
+
+	return ssh.NewSignerFromKey(key)
+}
+
 func main() {
 	flag.Parse()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -94,10 +123,16 @@ func main() {
 
 	signer, err := loadHostKey(*hostKeyPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			log.Printf("see https://github.com/gokrazy/breakglass#installation")
+		if !os.IsNotExist(err) {
+			log.Fatalf("see https://github.com/gokrazy/breakglass#installation")
 		}
-		log.Fatal(err)
+
+		// create host key
+		log.Println("host key not found, creating initial host key")
+		signer, err = createHostKey(*hostKeyPath)
+		if err != nil {
+			log.Fatalf("could not create host key: %v", err)
+		}
 	}
 	config.AddHostKey(signer)
 
