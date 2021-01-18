@@ -6,24 +6,113 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
 
+	"github.com/gokrazy/gokrazy"
 	"github.com/google/shlex"
 	"github.com/kr/pty"
 	"golang.org/x/crypto/ssh"
 )
 
-func handleChannel(newChannel ssh.NewChannel) {
-	if t := newChannel.ChannelType(); t != "session" {
-		newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %q", t))
+func handleChannel(newChan ssh.NewChannel) {
+	switch t := newChan.ChannelType(); t {
+	case "session":
+		handleSession(newChan)
+	case "direct-tcpip":
+		handleTCPIP(newChan)
+	default:
+		newChan.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %q", t))
+		return
+	}
+}
+
+func parseAddr(addr string) net.IP {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		if ips, err := net.LookupIP(addr); err == nil {
+			ip = ips[0] // use first address found
+		}
+	}
+
+	return ip
+}
+
+// Forwarding ported from https://github.com/gliderlabs/ssh (BSD3 License)
+
+// direct-tcpip data struct as specified in RFC4254, Section 7.2
+type localForwardChannelData struct {
+	DestAddr string
+	DestPort uint32
+
+	OriginAddr string
+	OriginPort uint32
+}
+
+func handleTCPIP(newChan ssh.NewChannel) {
+	d := localForwardChannelData{}
+	if err := ssh.Unmarshal(newChan.ExtraData(), &d); err != nil {
+		newChan.Reject(ssh.ConnectionFailed, "error parsing forward data: "+err.Error())
 		return
 	}
 
+	var ip net.IP
+	switch *forwarding {
+	case "loopback":
+		if ip = parseAddr(d.DestAddr); ip != nil && !ip.IsLoopback() {
+			newChan.Reject(ssh.Prohibited, "port forwarding not allowed for address")
+			return
+		}
+	case "private-network":
+		if ip = parseAddr(d.DestAddr); ip != nil && !gokrazy.IsInPrivateNet(ip) {
+			newChan.Reject(ssh.Prohibited, "port forwarding not allowed for address")
+			return
+		}
+	default:
+		newChan.Reject(ssh.Prohibited, "port forwarding is disabled")
+		return
+	}
+
+	// fallthrough for forwarding enabled, validate ip != nil once
+	if ip == nil {
+		newChan.Reject(ssh.Prohibited, "host not reachable")
+	}
+
+	dest := net.JoinHostPort(ip.String(), strconv.Itoa(int(d.DestPort)))
+
+	var dialer net.Dialer
+	dconn, err := dialer.DialContext(context.Background(), "tcp", dest)
+	if err != nil {
+		newChan.Reject(ssh.ConnectionFailed, err.Error())
+		return
+	}
+
+	ch, reqs, err := newChan.Accept()
+	if err != nil {
+		dconn.Close()
+		return
+	}
+	go ssh.DiscardRequests(reqs)
+
+	go func() {
+		defer ch.Close()
+		defer dconn.Close()
+		io.Copy(ch, dconn)
+	}()
+	go func() {
+		defer ch.Close()
+		defer dconn.Close()
+		io.Copy(dconn, ch)
+	}()
+}
+
+func handleSession(newChannel ssh.NewChannel) {
 	channel, requests, err := newChannel.Accept()
 	if err != nil {
 		log.Printf("Could not accept channel (%s)", err)

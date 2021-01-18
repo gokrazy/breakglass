@@ -27,6 +27,10 @@ var (
 	hostKeyPath = flag.String("host_key",
 		"/perm/breakglass.host_key",
 		"path to a PEM-encoded RSA, DSA or ECDSA private key (create using e.g. ssh-keygen -f /perm/breakglass.host_key -N '' -t rsa)")
+
+	forwarding = flag.String("forward",
+		"",
+		"allow port forwarding. Use `loopback` for loopback interfaces and `private-network` for private networks")
 )
 
 func loadAuthorizedKeys(path string) (map[string]bool, error) {
