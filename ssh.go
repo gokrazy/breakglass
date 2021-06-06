@@ -18,6 +18,7 @@ import (
 	"github.com/gokrazy/gokrazy"
 	"github.com/google/shlex"
 	"github.com/kr/pty"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -204,6 +205,11 @@ type execR struct {
 	Command string
 }
 
+// subsystem is a channel request as specified in RFC4254, Section 6.5
+type subsystem struct {
+	SubsystemName string
+}
+
 func findShell() string {
 	if path, err := exec.LookPath("sh"); err == nil {
 		return path
@@ -249,6 +255,38 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 		}
 
 		s.env = append(s.env, fmt.Sprintf("%s=%s", r.VariableName, r.VariableValue))
+
+	case "subsystem":
+		var sr subsystem
+		if err := ssh.Unmarshal(req.Payload, &sr); err != nil {
+			return err
+		}
+
+		log.Printf("client requests subsystem %q", sr.SubsystemName)
+
+		if sr.SubsystemName != "sftp" {
+			return fmt.Errorf("subsystem %q not yet implemented", sr.SubsystemName)
+		}
+
+		log.Printf("starting SFTP subsystem")
+
+		srv, err := sftp.NewServer(s.channel, sftp.WithDebug(os.Stderr))
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			err := srv.Serve()
+			if err != nil {
+				log.Printf("(sftp.Server).Serve(): %v", err)
+				if err == io.EOF {
+					srv.Close()
+					log.Printf("sftp client exited session")
+				}
+			}
+		}()
+
+		req.Reply(true, nil)
 
 	case "shell":
 		req.Payload = []byte("\x00\x00\x00\x02sh")
