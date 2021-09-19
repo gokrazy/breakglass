@@ -30,6 +30,7 @@ type bg struct {
 	hostname     string
 	pw           string
 	forceRestart bool
+	sshConfig    string
 
 	// state
 	GOARCH string
@@ -133,7 +134,11 @@ func (bg *bg) uploadDebugTarball(debugTarballPattern string) error {
 		time.Since(st.ModTime()).Round(1*time.Second),
 		strings.Join(contents, "\n\t\t"))
 
-	scp := exec.Command("scp", debugTarball, bg.hostname+":")
+	var opts []string
+	if bg.sshConfig != "" {
+		opts = append(opts, "-F", bg.sshConfig)
+	}
+	scp := exec.Command("scp", append(opts, debugTarball, bg.hostname+":")...)
 	scp.Stderr = os.Stderr
 	if err := scp.Run(); err != nil {
 		return fmt.Errorf("%v: %v", scp.Args, err)
@@ -152,6 +157,16 @@ func breakglass() error {
 			"debug_tarball_pattern",
 			"",
 			"If non-empty, a pattern resulting in the path to a debug.tar archive that should be copied to breakglass before starting a shell. This can be used to make additional tools available for debugging. All occurrences of ${GOARCH} will be replaced with the runtime.GOARCH of the remote gokrazy installation.")
+
+		prepare = flag.Bool(
+			"prepare_only",
+			false,
+			"prepare the SSH connection only, but do not execute SSH (useful for using breakglass within an SSH ProxyCommand)")
+
+		sshConfig = flag.String(
+			"ssh_config",
+			"",
+			"an alternative per-user configuration file for ssh and scp")
 	)
 
 	flag.Usage = func() {
@@ -179,6 +194,7 @@ func breakglass() error {
 		hostname:     hostname,
 		pw:           pw,
 		forceRestart: *forceRestart,
+		sshConfig:    *sshConfig,
 	}
 
 	log.Printf("checking breakglass status on gokrazy installation %q", hostname)
@@ -197,6 +213,10 @@ func breakglass() error {
 
 	if err := bg.uploadDebugTarball(*debugTarballPattern); err != nil {
 		return err
+	}
+
+	if *prepare {
+		return nil
 	}
 
 	ssh := exec.Command("ssh", hostname)
