@@ -31,6 +31,7 @@ type bg struct {
 	pw           string
 	forceRestart bool
 	sshConfig    string
+	gokrazyURL   string
 
 	// state
 	GOARCH string
@@ -43,6 +44,15 @@ func (bg *bg) startBreakglass() error {
 	}
 	client := &http.Client{Jar: jar}
 	urlPrefix := "http://gokrazy:" + bg.pw + "@" + bg.hostname
+	if bg.gokrazyURL != "" {
+		if strings.HasPrefix(bg.gokrazyURL, ":") {
+			// Append port
+			urlPrefix += bg.gokrazyURL
+		} else {
+			// Overwrite URL
+			urlPrefix = strings.TrimSuffix(bg.gokrazyURL, "/")
+		}
+	}
 	form, err := client.Get(urlPrefix + "/status?path=/user/breakglass")
 	if err != nil {
 		return err
@@ -75,12 +85,17 @@ func (bg *bg) startBreakglass() error {
 		return nil // breakglass already running
 	}
 
+	log.Printf("restarting breakglass")
 	resp, err := client.Post(urlPrefix+"/restart?path=/user/breakglass&xsrftoken="+xsrfToken, "", nil)
 	if err != nil {
 		return err
 	}
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
-		return fmt.Errorf("restarting breakglass: unexpected HTTP status code: got %d, want %d", got, want)
+		b, _ := ioutil.ReadAll(form.Body)
+		return fmt.Errorf("restarting breakglass: unexpected HTTP status: got %v (%s), want %v",
+			form.Status,
+			strings.TrimSpace(string(b)),
+			want)
 	}
 	return nil
 }
@@ -167,6 +182,11 @@ func breakglass() error {
 			"ssh_config",
 			"",
 			"an alternative per-user configuration file for ssh and scp")
+
+		gokrazyURL = flag.String(
+			"gokrazy_url",
+			"",
+			"a full URL like http://gokrazy:secret@host/")
 	)
 
 	flag.Usage = func() {
@@ -195,6 +215,7 @@ func breakglass() error {
 		pw:           pw,
 		forceRestart: *forceRestart,
 		sshConfig:    *sshConfig,
+		gokrazyURL:   *gokrazyURL,
 	}
 
 	log.Printf("checking breakglass status on gokrazy installation %q", hostname)
