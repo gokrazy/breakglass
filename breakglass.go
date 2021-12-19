@@ -123,15 +123,17 @@ func main() {
 
 	signer, err := loadHostKey(*hostKeyPath)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			log.Fatalf("see https://github.com/gokrazy/breakglass#installation")
+		// create host key
+		if os.IsNotExist(err) {
+			log.Println("host key not found, creating initial host key")
+			signer, err = createHostKey(*hostKeyPath)
+			if err != nil {
+				err = fmt.Errorf("could not create host key: %w", err)
+			}
 		}
 
-		// create host key
-		log.Println("host key not found, creating initial host key")
-		signer, err = createHostKey(*hostKeyPath)
 		if err != nil {
-			log.Fatalf("could not create host key: %v", err)
+			log.Fatal(err)
 		}
 	}
 	config.AddHostKey(signer)
