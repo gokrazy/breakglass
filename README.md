@@ -23,10 +23,12 @@ config](https://gokrazy.org/userguide/package-config/) for the
 
 ```
 mkdir -p extrafiles/github.com/gokrazy/breakglass/etc/
-cat ~/.ssh/id_*.pub extrafiles/github.com/gokrazy/breakglass/etc/breakglass.authorized_keys
+cat ~/.ssh/id_*.pub \
+  extrafiles/github.com/gokrazy/breakglass/etc/breakglass.authorized_keys
 
 mkdir -p flags/github.com/gokrazy/breakglass/
-echo '-authorized_keys=/etc/breakglass.authorized_keys' > flags/github.com/gokrazy/breakglass/flags.txt
+echo '-authorized_keys=/etc/breakglass.authorized_keys' \
+  > flags/github.com/gokrazy/breakglass/flags.txt
 ```
 
 Then, add the `github.com/gokrazy/breakglass` package to your `gokr-packer`
