@@ -15,7 +15,21 @@ started via the gokrazy web interface.
 
 ## Installation
 
-Add the `github.com/gokrazy/breakglass` package to your `gokr-packer`
+Please see https://gokrazy.org/quickstart/ if you’re unfamiliar with gokrazy.
+
+First, install your SSH public key(s) as authorized via [package
+config](https://gokrazy.org/userguide/package-config/) for the
+`github.com/gokrazy/breakglass` package:
+
+```
+mkdir -p extrafiles/github.com/gokrazy/breakglass/etc/
+cat ~/.ssh/id_*.pub extrafiles/github.com/gokrazy/breakglass/etc/breakglass.authorized_keys
+
+mkdir -p flags/github.com/gokrazy/breakglass/
+echo '-authorized_keys=/etc/breakglass.authorized_keys' > flags/github.com/gokrazy/breakglass/flags.txt
+```
+
+Then, add the `github.com/gokrazy/breakglass` package to your `gokr-packer`
 command, e.g.:
 
 ```
@@ -23,15 +37,6 @@ gokr-packer -overwrite=/dev/sdx \
   github.com/gokrazy/hello \
   github.com/gokrazy/serial-busybox \
   github.com/gokrazy/breakglass
-```
-
-On the permanent file system of your gokrazy installation, create a
-host key and an authorized keys file. Assuming you mounted the
-permanent file system at `/media/sdx4`:
-
-```
-sudo ssh-keygen -N '' -t ed25519 -f /media/sdx4/breakglass.host_key
-sudo install -m 600 ~/.ssh/id_*.pub /media/sdx4/breakglass.authorized_keys
 ```
 
 ## Usage
