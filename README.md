@@ -31,8 +31,9 @@ echo '-authorized_keys=/etc/breakglass.authorized_keys' \
   > flags/github.com/gokrazy/breakglass/flags.txt
 ```
 
-Then, add the `github.com/gokrazy/breakglass` package to your `gokr-packer`
-command, e.g.:
+Then, add the `github.com/gokrazy/breakglass` and
+`github.com/gokrazy/serial-busybox` packages to your `gokr-packer` command,
+e.g.:
 
 ```
 gokr-packer -overwrite=/dev/sdx \
