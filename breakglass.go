@@ -36,6 +36,10 @@ var (
 		"22",
 		"port for breakglass to listen on")
 
+	enableBanner = flag.Bool("enable_banner",
+		false,
+		"Adds a banner to greet the user on login")
+
 	forwarding = flag.String("forward",
 		"",
 		"allow port forwarding. Use `loopback` for loopback interfaces and `private-network` for private networks")
@@ -130,6 +134,20 @@ func main() {
 				return nil, nil
 			}
 			return nil, fmt.Errorf("public key not found in %s", *authorizedKeysPath)
+		},
+		BannerCallback: func(conn ssh.ConnMetadata) string {
+			if !*enableBanner {
+				return ""
+			}
+			bannerMessage := fmt.Sprintf("#\n#  Welcome to gokrazy, %s!\n", conn.User())
+			bannerInfo := fmt.Sprintf("#  This installation is running on a %q!\n#\n", gokrazy.Model())
+			maxChars := len(bannerInfo)
+			if maxChars < len(bannerMessage) {
+				maxChars = len(bannerMessage)
+			}
+			border := strings.Repeat("#", maxChars) + "\n"
+			bannerMessage = border + bannerMessage + bannerInfo + border
+			return bannerMessage
 		},
 	}
 
