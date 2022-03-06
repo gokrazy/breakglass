@@ -50,11 +50,19 @@ func loadAuthorizedKeys(path string) (map[string]bool, error) {
 	result := make(map[string]bool)
 
 	s := bufio.NewScanner(bytes.NewReader(b))
-	for s.Scan() {
+	for lineNum := 1; s.Scan(); lineNum++ {
 		if tr := strings.TrimSpace(s.Text()); tr == "" || strings.HasPrefix(tr, "#") {
 			continue
 		}
-		pubKey, _, _, _, err := ssh.ParseAuthorizedKey(s.Bytes())
+		pubKey, comment, _, _, err := ssh.ParseAuthorizedKey(s.Bytes())
+
+		// This warning can be removed once the mentioned issue is resolved
+		if keyType := pubKey.Type(); keyType == "ssh-rsa" {
+			log.Print("Warning: You added a ssh-rsa key to your authorized keys, these do currently not work.")
+			log.Print("Further information: https://github.com/gokrazy/breakglass/issues/11")
+			log.Printf("Affected key: %s [...] %s (line %d)", keyType, comment, lineNum)
+		}
+
 		if err != nil {
 			return nil, err
 		}
