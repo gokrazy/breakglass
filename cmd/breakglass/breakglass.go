@@ -53,6 +53,14 @@ func (bg *bg) startBreakglass() error {
 			urlPrefix = strings.TrimSuffix(bg.gokrazyURL, "/")
 		}
 	}
+	port, err := config.HostnameSpecific(bg.hostname).ReadFile("http-port.txt")
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if port != "" {
+		urlPrefix += ":" + port
+	}
+
 	form, err := client.Get(urlPrefix + "/status?path=/user/breakglass")
 	if err != nil {
 		return err
