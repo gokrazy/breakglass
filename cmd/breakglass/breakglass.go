@@ -186,6 +186,11 @@ func breakglass() error {
 			false,
 			"prepare the SSH connection only, but do not execute SSH (useful for using breakglass within an SSH ProxyCommand)")
 
+		proxy = flag.Bool(
+			"proxy",
+			false,
+			"prepare the SSH connection, then connect stdin/stdout to the SSH port (useful for using breakglass within an SSH ProxyCommand)")
+
 		sshConfig = flag.String(
 			"ssh_config",
 			"",
@@ -242,6 +247,17 @@ func breakglass() error {
 
 	if err := bg.uploadDebugTarball(*debugTarballPattern); err != nil {
 		return err
+	}
+
+	if *proxy {
+		log.Printf("proxying SSH traffic (-proxy flag)")
+		nc := exec.Command("nc", hostname, "22")
+		nc.Stdout = os.Stdout
+		nc.Stdin = os.Stdin
+		if err := nc.Run(); err != nil {
+			return fmt.Errorf("%v: %v", nc.Args, err)
+		}
+		return nil
 	}
 
 	if *prepare {
