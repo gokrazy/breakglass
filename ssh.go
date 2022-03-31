@@ -314,7 +314,9 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 			cmd = exec.CommandContext(ctx, cmdline[0], cmdline[1:]...)
 		}
 		log.Printf("Starting cmd %q", cmd.Args)
-		cmd.Env = expandPath(s.env)
+		env := expandPath(s.env)
+		env = append(env, "HOME=/perm/home")
+		cmd.Env = env
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 
 		if s.ttyf == nil {
