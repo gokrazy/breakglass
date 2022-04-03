@@ -315,7 +315,9 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 		}
 		log.Printf("Starting cmd %q", cmd.Args)
 		env := expandPath(s.env)
-		env = append(env, "HOME=/perm/home")
+		env = append(env,
+			"HOME=/perm/home",
+			"TMPDIR=/tmp")
 		cmd.Env = env
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 
