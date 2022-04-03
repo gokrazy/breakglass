@@ -163,7 +163,7 @@ func expandPath(env []string) []string {
 		found = true
 	}
 	if !found {
-		const busyboxDefaultPATH = "/sbin:/usr/sbin:/bin:/usr/bin"
+		const busyboxDefaultPATH = "/usr/local/sbin:/sbin:/usr/sbin:/usr/local/bin:/bin:/usr/bin"
 		env = append(env, fmt.Sprintf("PATH=%s:/user:%s", pwd, busyboxDefaultPATH))
 	}
 	return env
