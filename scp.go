@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/renameio/v2"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -83,15 +84,14 @@ func scpSink(channel ssh.Channel, req *ssh.Request, cmdline []string) error {
 					continue // directory, don’t try to OpenFile() it
 				}
 				mode := h.FileInfo().Mode() & os.ModePerm
-				out, err := os.OpenFile(h.Name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
+				out, err := renameio.NewPendingFile(h.Name, renameio.WithStaticPermissions(mode))
 				if err != nil {
 					return err
 				}
 				if _, err := io.Copy(out, tr); err != nil {
-					out.Close()
 					return err
 				}
-				if err := out.Close(); err != nil {
+				if err := out.CloseAtomicallyReplace(); err != nil {
 					return err
 				}
 			}

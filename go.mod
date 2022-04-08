@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/gokrazy/gokrazy v0.0.0-20211024151958-b718dd90ae71
 	github.com/gokrazy/internal v0.0.0-20210621162516-1b3b5687a06d
+	github.com/google/renameio/v2 v2.0.0
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
 	github.com/kr/pty v1.1.8
 	github.com/pkg/sftp v1.13.0
