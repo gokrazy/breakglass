@@ -66,36 +66,9 @@ func scpSink(channel ssh.Channel, req *ssh.Request, cmdline []string) error {
 
 			// Retrieve file contents
 			var cw countingWriter
-			tr := tar.NewReader(io.TeeReader(channel, &cw))
-			for {
-				h, err := tr.Next()
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					return err
-				}
-
-				log.Printf("extracting %q", h.Name)
-				if err := os.MkdirAll(filepath.Dir(h.Name), 0700); err != nil {
-					return err
-				}
-				if strings.HasSuffix(h.Name, "/") {
-					continue // directory, don’t try to OpenFile() it
-				}
-				mode := h.FileInfo().Mode() & os.ModePerm
-				out, err := renameio.NewPendingFile(h.Name, renameio.WithStaticPermissions(mode))
-				if err != nil {
-					return err
-				}
-				if _, err := io.Copy(out, tr); err != nil {
-					return err
-				}
-				if err := out.CloseAtomicallyReplace(); err != nil {
-					return err
-				}
+			if err := unpackTar(io.TeeReader(channel, &cw)); err != nil {
+				return err
 			}
-
 			if rest := size - int64(cw); rest > 0 {
 				buf := make([]byte, rest)
 				if _, err := channel.Read(buf); err != nil {
@@ -123,5 +96,38 @@ func scpSink(channel ssh.Channel, req *ssh.Request, cmdline []string) error {
 	}
 	channel.Close()
 	req.Reply(true, nil)
+	return nil
+}
+
+func unpackTar(r io.Reader) error {
+	tr := tar.NewReader(r)
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		log.Printf("extracting %q", h.Name)
+		if err := os.MkdirAll(filepath.Dir(h.Name), 0700); err != nil {
+			return err
+		}
+		if strings.HasSuffix(h.Name, "/") {
+			continue // directory, don’t try to OpenFile() it
+		}
+		mode := h.FileInfo().Mode() & os.ModePerm
+		out, err := renameio.NewPendingFile(h.Name, renameio.WithStaticPermissions(mode))
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(out, tr); err != nil {
+			return err
+		}
+		if err := out.CloseAtomicallyReplace(); err != nil {
+			return err
+		}
+	}
 	return nil
 }

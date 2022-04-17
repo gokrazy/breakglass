@@ -292,9 +292,34 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 			}
 		}
 
+		// Special case for breakglass usage: unpack all .tar files that were
+		// transferred into $PWD (which is a /tmp/breakglass… temporary
+		// directory), so that the binaries included in the tar file can be used
+		// for debugging.
+		dirents, err := os.ReadDir(".")
+		if err != nil {
+			return err
+		}
+		for _, dirent := range dirents {
+			if !strings.HasSuffix(dirent.Name(), ".tar") {
+				continue
+			}
+			f, err := os.Open(dirent.Name())
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			if err := unpackTar(f); err != nil {
+				return err
+			}
+		}
+
 		// See https://tools.ietf.org/html/rfc4254#section-6.10
-		_, err = s.channel.SendRequest("exit-status", false /* wantReply */, ssh.Marshal(exitStatus{exitCode}))
-		return err
+		if _, err := s.channel.SendRequest("exit-status", false /* wantReply */, ssh.Marshal(exitStatus{exitCode})); err != nil {
+			return err
+		}
+
+		return nil
 
 	case "shell":
 		req.Payload = []byte("\x00\x00\x00\x02sh")
