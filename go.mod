@@ -8,8 +8,8 @@ require (
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
 	github.com/kr/pty v1.1.8
-	github.com/pkg/sftp v1.13.0
-	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
+	github.com/pkg/sftp v1.13.5-0.20220330091711-a17a626ab843
+	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
 )
 
 require (
@@ -17,6 +17,6 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/mdlayher/watchdog v0.0.0-20201005150459-8bdc4f41966b // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	golang.org/x/sys v0.0.0-20210820121016-41cdb8703e55 // indirect
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	rsc.io/goversion v1.2.0 // indirect
 )
