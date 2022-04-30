@@ -23,6 +23,9 @@ import (
 	"time"
 
 	"github.com/gokrazy/internal/config"
+	"github.com/gokrazy/internal/httpclient"
+	"github.com/gokrazy/internal/tlsflag"
+	"github.com/gokrazy/internal/updateflag"
 )
 
 type bg struct {
@@ -31,7 +34,6 @@ type bg struct {
 	pw           string
 	forceRestart bool
 	sshConfig    string
-	gokrazyURL   string
 
 	// state
 	GOARCH string
@@ -42,26 +44,62 @@ func (bg *bg) startBreakglass() error {
 	if err != nil {
 		return err
 	}
-	client := &http.Client{Jar: jar}
-	urlPrefix := "http://gokrazy:" + bg.pw + "@" + bg.hostname
-	if bg.gokrazyURL != "" {
-		if strings.HasPrefix(bg.gokrazyURL, ":") {
-			// Append port
-			urlPrefix += bg.gokrazyURL
-		} else {
-			// Overwrite URL
-			urlPrefix = strings.TrimSuffix(bg.gokrazyURL, "/")
-		}
+
+	_, updateHostname := updateflag.GetUpdateTarget(bg.hostname)
+	const configBaseName = "http-password.txt"
+	pw, err := config.HostnameSpecific(updateHostname).ReadFile(configBaseName)
+	if err != nil {
+		return err
 	}
 	port, err := config.HostnameSpecific(bg.hostname).ReadFile("http-port.txt")
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	if port != "" {
-		urlPrefix += ":" + port
+	if port == "" {
+		port = "80"
 	}
 
-	form, err := client.Get(urlPrefix + "/status?path=/user/breakglass")
+	schema := "http"
+	certPath, _, err := tlsflag.CertificatePathsFor(bg.hostname)
+	if err != nil {
+		return err
+	}
+	if certPath != "" {
+		schema = "https"
+	}
+	updateBaseUrl, err := updateflag.BaseURL(port, schema, bg.hostname, pw)
+	if err != nil {
+		return err
+	}
+
+	updateHttpClient, foundMatchingCertificate, err := tlsflag.GetTLSHttpClient(updateBaseUrl)
+	if err != nil {
+		return fmt.Errorf("getting http client by tls flag: %v", err)
+	}
+	updateHttpClient.Jar = jar
+
+	remoteScheme, err := httpclient.GetRemoteScheme(updateBaseUrl)
+	if remoteScheme == "https" && !tlsflag.Insecure() {
+		updateBaseUrl.Scheme = "https"
+		updateflag.SetUpdate(updateBaseUrl.String())
+	}
+
+	if updateBaseUrl.Scheme != "https" && foundMatchingCertificate {
+		fmt.Printf("\n")
+		fmt.Printf("!!!WARNING!!! Possible SSL-Stripping detected!\n")
+		fmt.Printf("Found certificate for hostname in your client configuration but the host does not offer https!\n")
+		fmt.Printf("\n")
+		if !tlsflag.Insecure() {
+			log.Fatalf("update canceled: TLS certificate found, but negotiating a TLS connection with the target failed")
+		}
+		fmt.Printf("Proceeding anyway as requested (-insecure).\n")
+	}
+
+	if err != nil {
+		return err
+	}
+
+	form, err := updateHttpClient.Get(updateBaseUrl.String() + "status?path=/user/breakglass")
 	if err != nil {
 		return err
 	}
@@ -94,14 +132,14 @@ func (bg *bg) startBreakglass() error {
 	}
 
 	log.Printf("restarting breakglass")
-	resp, err := client.Post(urlPrefix+"/restart?path=/user/breakglass&xsrftoken="+xsrfToken, "", nil)
+	resp, err := updateHttpClient.Post(updateBaseUrl.String()+"restart?path=/user/breakglass&xsrftoken="+xsrfToken, "", nil)
 	if err != nil {
 		return err
 	}
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		b, _ := ioutil.ReadAll(form.Body)
 		return fmt.Errorf("restarting breakglass: unexpected HTTP status: got %v (%s), want %v",
-			form.Status,
+			resp.Status,
 			strings.TrimSpace(string(b)),
 			want)
 	}
@@ -195,12 +233,10 @@ func breakglass() error {
 			"ssh_config",
 			"",
 			"an alternative per-user configuration file for ssh and scp")
-
-		gokrazyURL = flag.String(
-			"gokrazy_url",
-			"",
-			"a full URL like http://gokrazy:secret@host/")
 	)
+
+	tlsflag.RegisterFlags(flag.CommandLine)
+	updateflag.RegisterFlags(flag.CommandLine, "gokrazy_url")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n\n", os.Args[0])
@@ -216,6 +252,14 @@ func breakglass() error {
 	if flag.NArg() < 1 {
 		log.Fatalf("syntax: breakglass <hostname> [command]")
 	}
+
+	// If the user did not explicitly specify -update=yes, we default to it.
+	// This differs from the gokr-packer, but breakglass is only useful for
+	// gokrazy instances that already exist.
+	if updateflag.NewInstallation() {
+		updateflag.SetUpdate("yes")
+	}
+
 	hostname := flag.Arg(0)
 
 	b, err := config.HostnameSpecific(hostname).ReadFile("http-password.txt")
@@ -228,7 +272,6 @@ func breakglass() error {
 		pw:           pw,
 		forceRestart: *forceRestart,
 		sshConfig:    *sshConfig,
-		gokrazyURL:   *gokrazyURL,
 	}
 
 	log.Printf("checking breakglass status on gokrazy installation %q", hostname)
