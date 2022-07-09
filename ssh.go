@@ -323,6 +323,9 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 
 	case "shell":
 		req.Payload = []byte("\x00\x00\x00\x02sh")
+		if motd != "" {
+			fmt.Fprintf(s.channel.Stderr(), "%s\r\n", strings.ReplaceAll(motd, "\n", "\r\n"))
+		}
 		fallthrough
 
 	case "exec":
