@@ -7,8 +7,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/gokrazy/gokrazy v0.0.0-20211024151958-b718dd90ae71 h1:NHLkr4NYMY9gZGTI+jzIo38ZffMHkPbBzMcUDkyHs0g=
 github.com/gokrazy/gokrazy v0.0.0-20211024151958-b718dd90ae71/go.mod h1:eq2ROPhZJtxxEi21P8cbNqP8pwRBSpW/4LGKwNiQg2Y=
 github.com/gokrazy/internal v0.0.0-20210621162516-1b3b5687a06d/go.mod h1:Gqv1x1DNrObmBvVvblpZbvZizZ0dU5PwiwYHipmtY9Y=
-github.com/gokrazy/internal v0.0.0-20220430192544-1821f343e404 h1:2VNhTnO4DjxaH6U/hpFMzllkSyBL4aPRabMxMVuuhJs=
-github.com/gokrazy/internal v0.0.0-20220430192544-1821f343e404/go.mod h1:Gc9sU6yJ/qxg3gJZ1pjfcTAULa0swdTa4TH51g1e00E=
+github.com/gokrazy/internal v0.0.0-20220709172510-3a50f98beeea h1:zj2YbSnHCoADuvEUJOPXNVexuZsNd6y/oQBs0vBJIuU=
+github.com/gokrazy/internal v0.0.0-20220709172510-3a50f98beeea/go.mod h1:Gc9sU6yJ/qxg3gJZ1pjfcTAULa0swdTa4TH51g1e00E=
 github.com/google/go-cmp v0.5.5 h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=
 github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/gopacket v1.1.16/go.mod h1:UCLx9mCmAwsVbn6qQl1WIEt2SO7Nd2fD0th1TBAsqBw=
