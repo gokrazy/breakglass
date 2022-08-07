@@ -1,6 +1,6 @@
 module github.com/gokrazy/breakglass
 
-go 1.17
+go 1.18
 
 require (
 	github.com/gokrazy/gokrazy v0.0.0-20211024151958-b718dd90ae71
