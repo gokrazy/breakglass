@@ -2,8 +2,9 @@
 // destination gokrazy installation <hostname> first.
 //
 // Example:
-//   breakglass gokrazy
-//   breakglass -debug_tarball_pattern=$HOME/gokrazy/debug-\${GOARCH}.tar gokrazy
+//
+//	breakglass gokrazy
+//	breakglass -debug_tarball_pattern=$HOME/gokrazy/debug-\${GOARCH}.tar gokrazy
 package main
 
 import (
