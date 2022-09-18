@@ -343,6 +343,13 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 			return scpSink(s.channel, req, cmdline)
 		}
 
+		// Ensure the $HOME directory exists so that shell history works without
+		// any extra steps.
+		if err := os.MkdirAll("/perm/home", 0755); err != nil {
+			// TODO: Suppress -EROFS
+			log.Print(err)
+		}
+
 		var cmd *exec.Cmd
 		if shell := findShell(); shell != "" {
 			cmd = exec.CommandContext(ctx, shell, "-c", r.Command)
