@@ -123,7 +123,11 @@ func buildTimestamp() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req, err := http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@localhost/", nil)
+	port, err := os.ReadFile("/etc/http-port.txt")
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@localhost:"+strings.TrimSpace(string(port))+"/", nil)
 	if err != nil {
 		return "", err
 	}
