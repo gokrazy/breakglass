@@ -15,32 +15,46 @@ started via the gokrazy web interface.
 
 ## Installation
 
-Please see https://gokrazy.org/quickstart/ if you’re unfamiliar with gokrazy.
+Please see [the gokrazy quickstart
+instructions](https://gokrazy.org/quickstart/) if you’re unfamiliar with
+gokrazy.
 
-First, install your SSH public key(s) as authorized via [package
-config](https://gokrazy.org/userguide/package-config/) for the
-`github.com/gokrazy/breakglass` package:
+When creating a new gokrazy instance, the `gok new` command automatically
+installs `breakglass` and [authorizes
+`~/.ssh/id_*.pub`](https://github.com/gokrazy/tools/blob/b89d9dc6e09742ea23492bb84021da70b2965bff/cmd/gok/cmd/new.go#L124).
 
-```
-mkdir -p extrafiles/github.com/gokrazy/breakglass/etc/
-# Note: At the moment only ed25519 and ecdsa keys work
-cat ~/.ssh/id_*.pub \
-  > extrafiles/github.com/gokrazy/breakglass/etc/breakglass.authorized_keys
-
-mkdir -p flags/github.com/gokrazy/breakglass/
-echo '-authorized_keys=/etc/breakglass.authorized_keys' \
-  > flags/github.com/gokrazy/breakglass/flags.txt
-```
-
-Then, add the `github.com/gokrazy/breakglass` and
-`github.com/gokrazy/serial-busybox` packages to your `gokr-packer` command,
-e.g.:
+If you want to repeat this installation for some reason, use:
 
 ```
-gokr-packer -overwrite=/dev/sdx \
-  github.com/gokrazy/hello \
-  github.com/gokrazy/serial-busybox \
-  github.com/gokrazy/breakglass
+gok add github.com/gokrazy/breakglass
+gok add github.com/gokrazy/serial-busybox
+```
+
+Then, create an [`authorized_keys(5)`
+file](https://manpages.debian.org/authorized_keys.5) in
+`breakglass.authorized_keys` and install it as an extrafile:
+
+```json
+{
+    "Hostname": "hello",
+    "Packages": [
+        "github.com/gokrazy/fbstatus",
+        "github.com/gokrazy/hello",
+        "github.com/gokrazy/serial-busybox",
+        "github.com/gokrazy/breakglass"
+    ],
+    "PackageConfig": {
+        "github.com/gokrazy/breakglass": {
+            "CommandLineFlags": [
+                "-authorized_keys=/etc/breakglass.authorized_keys"
+            ],
+            "ExtraFilePaths": {
+                "/etc/breakglass.authorized_keys": "/home/michael/gokrazy/repro/breakglass.authorized_keys"
+            }
+        }
+    },
+    "SerialConsole": "disabled"
+}
 ```
 
 ## Usage
@@ -48,7 +62,7 @@ gokr-packer -overwrite=/dev/sdx \
 Be sure to install the convenience SSH wrapper tool on the host:
 
 ```
-go install github.com/gokrazy/breakglass/cmd/breakglass
+go install github.com/gokrazy/breakglass/cmd/breakglass@latest
 ```
 
 ### Start a shell
