@@ -63,7 +63,11 @@ func (bg *bg) startBreakglass() error {
 		bg.cfg.Update.HTTPSPort = "443"
 	}
 
-	update := bg.cfg.Update
+	update, err := bg.cfg.Update.WithFallbackToHostSpecific(bg.cfg.Update.Hostname)
+	if err != nil {
+		return err
+	}
+
 	updateBaseUrl, err := updateflag.BaseURL(update.HTTPPort, schema, update.Hostname, update.HTTPPassword)
 	if err != nil {
 		return err
@@ -297,7 +301,17 @@ func breakglass() error {
 		forceRestart: *forceRestart,
 		sshConfig:    *sshConfig,
 	}
+	if cfg.Update.Hostname == "" {
+		cfg.Update.Hostname = cfg.Hostname
+	}
 	hostname := cfg.Update.Hostname
+	if cfg.Update.HTTPPassword == "" {
+		pwb, err := config.HostnameSpecific(hostname).ReadFile("http-password.txt")
+		if err != nil {
+			return err
+		}
+		cfg.Update.HTTPPassword = pwb
+	}
 
 	log.Printf("checking breakglass status on gokrazy instance %q", bg.cfg.Hostname)
 	if err := bg.startBreakglass(); err != nil {
