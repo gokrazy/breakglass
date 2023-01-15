@@ -46,46 +46,19 @@ func (bg *bg) startBreakglass() error {
 		return err
 	}
 
-	schema := "http"
-	certPath, _, err := tlsflag.CertificatePathsFor(bg.cfg.Hostname)
+	updateHttpClient, foundMatchingCertificate, updateBaseURL, err := httpclient.For(bg.cfg)
 	if err != nil {
 		return err
-	}
-	if certPath != "" {
-		schema = "https"
-	}
-
-	if bg.cfg.Update.HTTPPort == "" {
-		bg.cfg.Update.HTTPPort = "80"
-	}
-
-	if bg.cfg.Update.HTTPSPort == "" {
-		bg.cfg.Update.HTTPSPort = "443"
-	}
-
-	update, err := bg.cfg.Update.WithFallbackToHostSpecific(bg.cfg.Update.Hostname)
-	if err != nil {
-		return err
-	}
-
-	updateBaseUrl, err := updateflag.BaseURL(update.HTTPPort, schema, update.Hostname, update.HTTPPassword)
-	if err != nil {
-		return err
-	}
-
-	updateHttpClient, foundMatchingCertificate, err := tlsflag.GetTLSHttpClient(updateBaseUrl)
-	if err != nil {
-		return fmt.Errorf("getting http client by tls flag: %v", err)
 	}
 	updateHttpClient.Jar = jar
 
-	remoteScheme, err := httpclient.GetRemoteScheme(updateBaseUrl)
+	remoteScheme, err := httpclient.GetRemoteScheme(updateBaseURL)
 	if remoteScheme == "https" && !tlsflag.Insecure() {
-		updateBaseUrl.Scheme = "https"
-		updateflag.SetUpdate(updateBaseUrl.String())
+		updateBaseURL.Scheme = "https"
+		updateflag.SetUpdate(updateBaseURL.String())
 	}
 
-	if updateBaseUrl.Scheme != "https" && foundMatchingCertificate {
+	if updateBaseURL.Scheme != "https" && foundMatchingCertificate {
 		fmt.Printf("\n")
 		fmt.Printf("!!!WARNING!!! Possible SSL-Stripping detected!\n")
 		fmt.Printf("Found certificate for hostname in your client configuration but the host does not offer https!\n")
@@ -100,7 +73,7 @@ func (bg *bg) startBreakglass() error {
 		return err
 	}
 
-	form, err := updateHttpClient.Get(updateBaseUrl.String() + "status?path=/user/breakglass")
+	form, err := updateHttpClient.Get(updateBaseURL.String() + "status?path=/user/breakglass")
 	if err != nil {
 		return err
 	}
@@ -133,7 +106,7 @@ func (bg *bg) startBreakglass() error {
 	}
 
 	log.Printf("restarting breakglass")
-	resp, err := updateHttpClient.Post(updateBaseUrl.String()+"restart?path=/user/breakglass&xsrftoken="+xsrfToken, "", nil)
+	resp, err := updateHttpClient.Post(updateBaseURL.String()+"restart?path=/user/breakglass&xsrftoken="+xsrfToken, "", nil)
 	if err != nil {
 		return err
 	}
@@ -268,28 +241,8 @@ func breakglass() error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// best-effort compatibility for old setups
-			hostname := instance
-			port, err := config.HostnameSpecific(hostname).ReadFile("http-port.txt")
-			if err != nil && !os.IsNotExist(err) {
-				return err
-			}
-			if port == "" {
-				port = "80"
-			}
-
-			_, updateHostname := updateflag.GetUpdateTarget(hostname)
-			pw, err := config.HostnameSpecific(updateHostname).ReadFile("http-password.txt")
-			if err != nil {
-				return err
-			}
-
 			cfg = &config.Struct{
-				Hostname: updateHostname,
-				Update: &config.UpdateStruct{
-					Hostname:     updateHostname,
-					HTTPPort:     port,
-					HTTPPassword: pw,
-				},
+				Hostname: instance,
 			}
 		} else {
 			return err
@@ -305,13 +258,6 @@ func breakglass() error {
 		cfg.Update.Hostname = cfg.Hostname
 	}
 	hostname := cfg.Update.Hostname
-	if cfg.Update.HTTPPassword == "" {
-		pwb, err := config.HostnameSpecific(hostname).ReadFile("http-password.txt")
-		if err != nil {
-			return err
-		}
-		cfg.Update.HTTPPassword = pwb
-	}
 
 	log.Printf("checking breakglass status on gokrazy instance %q", bg.cfg.Hostname)
 	if err := bg.startBreakglass(); err != nil {
