@@ -25,14 +25,14 @@ import (
 
 	"github.com/gokrazy/internal/config"
 	"github.com/gokrazy/internal/httpclient"
+	"github.com/gokrazy/internal/instanceflag"
 	"github.com/gokrazy/internal/tlsflag"
 	"github.com/gokrazy/internal/updateflag"
 )
 
 type bg struct {
 	// config
-	hostname     string
-	pw           string
+	cfg          *config.Struct
 	forceRestart bool
 	sshConfig    string
 
@@ -46,29 +46,25 @@ func (bg *bg) startBreakglass() error {
 		return err
 	}
 
-	_, updateHostname := updateflag.GetUpdateTarget(bg.hostname)
-	const configBaseName = "http-password.txt"
-	pw, err := config.HostnameSpecific(updateHostname).ReadFile(configBaseName)
-	if err != nil {
-		return err
-	}
-	port, err := config.HostnameSpecific(bg.hostname).ReadFile("http-port.txt")
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	if port == "" {
-		port = "80"
-	}
-
 	schema := "http"
-	certPath, _, err := tlsflag.CertificatePathsFor(bg.hostname)
+	certPath, _, err := tlsflag.CertificatePathsFor(bg.cfg.Hostname)
 	if err != nil {
 		return err
 	}
 	if certPath != "" {
 		schema = "https"
 	}
-	updateBaseUrl, err := updateflag.BaseURL(port, schema, bg.hostname, pw)
+
+	if bg.cfg.Update.HTTPPort == "" {
+		bg.cfg.Update.HTTPPort = "80"
+	}
+
+	if bg.cfg.Update.HTTPSPort == "" {
+		bg.cfg.Update.HTTPSPort = "443"
+	}
+
+	update := bg.cfg.Update
+	updateBaseUrl, err := updateflag.BaseURL(update.HTTPPort, schema, update.Hostname, update.HTTPPassword)
 	if err != nil {
 		return err
 	}
@@ -105,7 +101,7 @@ func (bg *bg) startBreakglass() error {
 		return err
 	}
 	if form.StatusCode == http.StatusNotFound {
-		fmt.Fprintf(os.Stderr, "Hint: have you installed Go package github.com/gokrazy/breakglass on your gokrazy installation %q?\n", bg.hostname)
+		fmt.Fprintf(os.Stderr, "Hint: have you installed Go package github.com/gokrazy/breakglass on your gokrazy instance %q?\n", bg.cfg.Hostname)
 	}
 	if got, want := form.StatusCode, http.StatusOK; got != want {
 		b, _ := ioutil.ReadAll(form.Body)
@@ -200,7 +196,7 @@ func (bg *bg) uploadDebugTarball(debugTarballPattern string) error {
 	if bg.sshConfig != "" {
 		opts = append(opts, "-F", bg.sshConfig)
 	}
-	scp := exec.Command("scp", append(opts, debugTarball, bg.hostname+":")...)
+	scp := exec.Command("scp", append(opts, debugTarball, bg.cfg.Hostname+":")...)
 	scp.Stderr = os.Stderr
 	if err := scp.Run(); err != nil {
 		return fmt.Errorf("%v: %v", scp.Args, err)
@@ -261,21 +257,49 @@ func breakglass() error {
 		updateflag.SetUpdate("yes")
 	}
 
-	hostname := flag.Arg(0)
+	instance := flag.Arg(0)
+	instanceflag.SetInstance(instance)
 
-	b, err := config.HostnameSpecific(hostname).ReadFile("http-password.txt")
+	cfg, err := config.ReadFromFile()
 	if err != nil {
-		return err
+		if os.IsNotExist(err) {
+			// best-effort compatibility for old setups
+			hostname := instance
+			port, err := config.HostnameSpecific(hostname).ReadFile("http-port.txt")
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			if port == "" {
+				port = "80"
+			}
+
+			_, updateHostname := updateflag.GetUpdateTarget(hostname)
+			pw, err := config.HostnameSpecific(updateHostname).ReadFile("http-password.txt")
+			if err != nil {
+				return err
+			}
+
+			cfg = &config.Struct{
+				Hostname: updateHostname,
+				Update: &config.UpdateStruct{
+					Hostname:     updateHostname,
+					HTTPPort:     port,
+					HTTPPassword: pw,
+				},
+			}
+		} else {
+			return err
+		}
 	}
-	pw := strings.TrimSpace(string(b))
+
 	bg := &bg{
-		hostname:     hostname,
-		pw:           pw,
+		cfg:          cfg,
 		forceRestart: *forceRestart,
 		sshConfig:    *sshConfig,
 	}
+	hostname := cfg.Update.Hostname
 
-	log.Printf("checking breakglass status on gokrazy installation %q", hostname)
+	log.Printf("checking breakglass status on gokrazy instance %q", bg.cfg.Hostname)
 	if err := bg.startBreakglass(); err != nil {
 		return err
 	}
