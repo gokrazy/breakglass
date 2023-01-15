@@ -1,10 +1,10 @@
 module github.com/gokrazy/breakglass
 
-go 1.18
+go 1.19
 
 require (
 	github.com/gokrazy/gokrazy v0.0.0-20211024151958-b718dd90ae71
-	github.com/gokrazy/internal v0.0.0-20220709172510-3a50f98beeea
+	github.com/gokrazy/internal v0.0.0-20230115123531-063b533a8f8a
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
 	github.com/kr/pty v1.1.8
