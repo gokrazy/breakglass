@@ -209,6 +209,10 @@ func breakglass() error {
 			"an alternative per-user configuration file for ssh and scp")
 	)
 
+	// TODO: remove the -tls and -gokrazy_url flags after 2023-June (half a year
+	// after the introduction of instance centric config), so that we can then
+	// merge these flags into tools/internal/oldpacker and remove their global
+	// state.
 	tlsflag.RegisterFlags(flag.CommandLine)
 	updateflag.RegisterFlags(flag.CommandLine, "gokrazy_url")
 
