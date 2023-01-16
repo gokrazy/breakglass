@@ -247,6 +247,7 @@ func breakglass() error {
 			// best-effort compatibility for old setups
 			cfg = &config.Struct{
 				Hostname: instance,
+				Update:   &config.UpdateStruct{},
 			}
 		} else {
 			return err
