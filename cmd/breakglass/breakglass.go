@@ -245,10 +245,7 @@ func breakglass() error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// best-effort compatibility for old setups
-			cfg = &config.Struct{
-				Hostname: instance,
-				Update:   &config.UpdateStruct{},
-			}
+			cfg = config.NewStruct(instanceflag.Instance())
 		} else {
 			return err
 		}
