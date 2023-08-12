@@ -1,9 +1,9 @@
 module github.com/gokrazy/breakglass
 
-go 1.19
+go 1.21
 
 require (
-	github.com/gokrazy/gokrazy v0.0.0-20230219142620-73892ad2388a
+	github.com/gokrazy/gokrazy v0.0.0-20230812092215-346db1998f83
 	github.com/gokrazy/internal v0.0.0-20230211171410-9608422911d0
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
@@ -14,6 +14,7 @@ require (
 
 require (
 	github.com/creack/pty v1.1.18 // indirect
+	github.com/kenshaw/evdev v0.1.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/mdlayher/watchdog v0.0.0-20221003142519-49be0df7b3b5 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
