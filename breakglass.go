@@ -28,7 +28,7 @@ import (
 var (
 	authorizedKeysPath = flag.String("authorized_keys",
 		"/perm/breakglass.authorized_keys",
-		"path to an OpenSSH authorized_keys file")
+		"path to an OpenSSH authorized_keys file; if the value is 'ec2', fetch the SSH key(s) from the AWS IMDSv2 metadata")
 
 	hostKeyPath = flag.String("host_key",
 		"/perm/breakglass.host_key",
@@ -48,7 +48,14 @@ var (
 )
 
 func loadAuthorizedKeys(path string) (map[string]bool, error) {
-	b, err := ioutil.ReadFile(path)
+	var b []byte
+	var err error
+	switch path {
+	case "ec2":
+		b, err = loadAWSEC2SSHKeys()
+	default:
+		b, err = ioutil.ReadFile(path)
+	}
 	if err != nil {
 		return nil, err
 	}
