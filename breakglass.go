@@ -39,7 +39,7 @@ var (
 		"port for breakglass to listen on")
 
 	enableBanner = flag.Bool("enable_banner",
-		false,
+		true,
 		"Adds a banner to greet the user on login")
 
 	forwarding = flag.String("forward",
