@@ -215,6 +215,16 @@ type exitStatus struct {
 }
 
 func findShell() string {
+	if _, err := os.Stat(wellKnownBusybox); err == nil {
+		// Install busybox to /bin to provide the typical userspace utilities
+		// in standard locations (makes Emacs TRAMP work, for example).
+		if err := installBusybox(); err != nil {
+			log.Printf("installing busybox failed: %v", err)
+			// fallthrough
+		} else {
+			return "/bin/sh" // available after installation
+		}
+	}
 	if path, err := exec.LookPath("sh"); err == nil {
 		return path
 	}
