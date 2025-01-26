@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/gokrazy/gokrazy v0.0.0-20230812092215-346db1998f83
-	github.com/gokrazy/internal v0.0.0-20230211171410-9608422911d0
+	github.com/gokrazy/internal v0.0.0-20250126213949-423a5b587b57
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/kr/pty v1.1.8

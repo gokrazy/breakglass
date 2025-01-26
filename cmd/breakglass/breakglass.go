@@ -241,7 +241,7 @@ func breakglass() error {
 	instance := flag.Arg(0)
 	instanceflag.SetInstance(instance)
 
-	cfg, err := config.ReadFromFile()
+	cfg, err := config.ApplyInstanceFlag()
 	if err != nil {
 		if os.IsNotExist(err) {
 			// best-effort compatibility for old setups
