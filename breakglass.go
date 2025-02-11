@@ -119,19 +119,30 @@ func buildTimestamp() (string, error) {
 	var statusReply struct {
 		BuildTimestamp string `json:"BuildTimestamp"`
 	}
-	client := &http.Client{
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				dialer := net.Dialer{}
-				return dialer.DialContext(ctx, "unix", gokrazy.GokrazyHTTPUnixSocket)
-			},
-		},
-	}
 	pw, err := os.ReadFile("/etc/gokr-pw.txt")
 	if err != nil {
 		return "", err
 	}
-	req, err := http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@unix/", nil)
+	client := http.DefaultClient
+	var req *http.Request
+	if conn, err := net.Dial("unix", gokrazy.HTTPUnixSocket); err == nil {
+		// Use the Unix domain socket if available.
+		conn.Close()
+		client.Transport = &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				dialer := net.Dialer{}
+				return dialer.DialContext(ctx, "unix", gokrazy.HTTPUnixSocket)
+			},
+		}
+		req, err = http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@unix/", nil)
+	} else {
+		// Fallback to TCP.
+		port, err := os.ReadFile("/etc/http-port.txt")
+		if err != nil {
+			return "", err
+		}
+		req, err = http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@localhost:"+strings.TrimSpace(string(port))+"/", nil)
+	}
 	if err != nil {
 		return "", err
 	}
