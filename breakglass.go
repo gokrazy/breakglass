@@ -9,18 +9,18 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"strings"
 	"syscall"
 
+	"github.com/gokrazy/gokapi"
+	"github.com/gokrazy/gokapi/ondeviceapi"
 	"github.com/gokrazy/gokrazy"
 
 	"golang.org/x/crypto/ssh"
@@ -116,54 +116,16 @@ func createHostKey(path string) (ssh.Signer, error) {
 }
 
 func buildTimestamp() (string, error) {
-	var statusReply struct {
-		BuildTimestamp string `json:"BuildTimestamp"`
-	}
-	pw, err := os.ReadFile("/etc/gokr-pw.txt")
+	cfg, err := gokapi.ConnectOnDevice()
 	if err != nil {
 		return "", err
 	}
-	client := http.DefaultClient
-	var req *http.Request
-	if conn, err := net.Dial("unix", gokrazy.HTTPUnixSocket); err == nil {
-		// Use the Unix domain socket if available.
-		conn.Close()
-		client.Transport = &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				dialer := net.Dialer{}
-				return dialer.DialContext(ctx, "unix", gokrazy.HTTPUnixSocket)
-			},
-		}
-		req, err = http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@unix/", nil)
-	} else {
-		// Fallback to TCP.
-		port, err := os.ReadFile("/etc/http-port.txt")
-		if err != nil {
-			return "", err
-		}
-		req, err = http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@localhost:"+strings.TrimSpace(string(port))+"/", nil)
-	}
+	cl := ondeviceapi.NewAPIClient(cfg)
+	res, _, err := cl.SuperviseApi.Index(context.Background())
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if got, want := resp.StatusCode, http.StatusOK; got != want {
-		b, _ := ioutil.ReadAll(resp.Body)
-		return "", fmt.Errorf("unexpected HTTP status code: got %v, want %v (body: %s)", resp.Status, want, strings.TrimSpace(string(b)))
-	}
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	if err := json.Unmarshal(b, &statusReply); err != nil {
-		return "", err
-	}
-	return statusReply.BuildTimestamp, nil
+	return res.BuildTimestamp, nil
 }
 
 var motd string
