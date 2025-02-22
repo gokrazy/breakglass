@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -122,17 +123,31 @@ func buildTimestamp() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	port, err := os.ReadFile("/etc/http-port.txt")
-	if err != nil {
-		return "", err
+	client := http.DefaultClient
+	var req *http.Request
+	if conn, err := net.Dial("unix", gokrazy.HTTPUnixSocket); err == nil {
+		// Use the Unix domain socket if available.
+		conn.Close()
+		client.Transport = &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				dialer := net.Dialer{}
+				return dialer.DialContext(ctx, "unix", gokrazy.HTTPUnixSocket)
+			},
+		}
+		req, err = http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@unix/", nil)
+	} else {
+		// Fallback to TCP.
+		port, err := os.ReadFile("/etc/http-port.txt")
+		if err != nil {
+			return "", err
+		}
+		req, err = http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@localhost:"+strings.TrimSpace(string(port))+"/", nil)
 	}
-	req, err := http.NewRequest("GET", "http://gokrazy:"+strings.TrimSpace(string(pw))+"@localhost:"+strings.TrimSpace(string(port))+"/", nil)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
