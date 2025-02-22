@@ -3,7 +3,7 @@ module github.com/gokrazy/breakglass
 go 1.24
 
 require (
-	github.com/gokrazy/gokrazy v0.0.0-20230812092215-346db1998f83
+	github.com/gokrazy/gokrazy v0.0.0-20250222061409-bd0bb5f1d0b5
 	github.com/gokrazy/internal v0.0.0-20250126213949-423a5b587b57
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
