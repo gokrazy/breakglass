@@ -10,7 +10,7 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/kr/pty v1.1.8
 	github.com/pkg/sftp v1.13.5
-	golang.org/x/crypto v0.33.0
+	golang.org/x/crypto v0.35.0
 )
 
 require (
