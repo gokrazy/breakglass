@@ -1,6 +1,6 @@
 module github.com/gokrazy/breakglass
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/gokrazy/gokapi v0.0.0-20250222071133-506fdb322775
@@ -10,7 +10,7 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/kr/pty v1.1.8
 	github.com/pkg/sftp v1.13.5
-	golang.org/x/crypto v0.35.0
+	golang.org/x/crypto v0.45.0
 )
 
 require (
@@ -20,5 +20,5 @@ require (
 	github.com/mdlayher/watchdog v0.0.0-20221003142519-49be0df7b3b5 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 )
