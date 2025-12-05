@@ -26,7 +26,6 @@ import (
 	"github.com/gokrazy/internal/config"
 	"github.com/gokrazy/internal/httpclient"
 	"github.com/gokrazy/internal/instanceflag"
-	"github.com/gokrazy/internal/tlsflag"
 	"github.com/gokrazy/internal/updateflag"
 )
 
@@ -35,9 +34,11 @@ type bg struct {
 	cfg          *config.Struct
 	forceRestart bool
 	sshConfig    string
+	insecure     bool
 
 	// state
 	GOARCH string
+	update updateflag.Value
 }
 
 func (bg *bg) startBreakglass() error {
@@ -46,16 +47,16 @@ func (bg *bg) startBreakglass() error {
 		return err
 	}
 
-	updateHttpClient, foundMatchingCertificate, updateBaseURL, err := httpclient.For(bg.cfg)
+	updateHttpClient, foundMatchingCertificate, updateBaseURL, err := httpclient.For(bg.update, bg.cfg)
 	if err != nil {
 		return err
 	}
 	updateHttpClient.Jar = jar
 
 	remoteScheme, err := httpclient.GetRemoteScheme(updateBaseURL)
-	if remoteScheme == "https" && !tlsflag.Insecure() {
+	if remoteScheme == "https" && !bg.insecure {
 		updateBaseURL.Scheme = "https"
-		updateflag.SetUpdate(updateBaseURL.String())
+		bg.update.Update = updateBaseURL.String()
 	}
 
 	if updateBaseURL.Scheme != "https" && foundMatchingCertificate {
@@ -63,7 +64,7 @@ func (bg *bg) startBreakglass() error {
 		fmt.Printf("!!!WARNING!!! Possible SSL-Stripping detected!\n")
 		fmt.Printf("Found certificate for hostname in your client configuration but the host does not offer https!\n")
 		fmt.Printf("\n")
-		if !tlsflag.Insecure() {
+		if !bg.insecure {
 			log.Fatalf("update canceled: TLS certificate found, but negotiating a TLS connection with the target failed")
 		}
 		fmt.Printf("Proceeding anyway as requested (-insecure).\n")
@@ -198,6 +199,11 @@ func breakglass() error {
 			false,
 			"prepare the SSH connection only, but do not execute SSH (useful for using breakglass within an SSH ProxyCommand)")
 
+		insecure = flag.Bool(
+			"insecure",
+			false,
+			"Ignore TLS stripping detection.")
+
 		proxy = flag.Bool(
 			"proxy",
 			false,
@@ -224,13 +230,6 @@ func breakglass() error {
 		log.Fatalf("syntax: breakglass <hostname> [command]")
 	}
 
-	// If the user did not explicitly specify -update=yes, we default to it.
-	// This differs from the gokr-packer, but breakglass is only useful for
-	// gokrazy instances that already exist.
-	if updateflag.NewInstallation() {
-		updateflag.SetUpdate("yes")
-	}
-
 	instance := flag.Arg(0)
 	instanceflag.SetInstance(instance)
 
@@ -248,6 +247,8 @@ func breakglass() error {
 		cfg:          cfg,
 		forceRestart: *forceRestart,
 		sshConfig:    *sshConfig,
+		insecure:     *insecure,
+		update:       updateflag.Value{Update: "yes"},
 	}
 	if cfg.Update.Hostname == "" {
 		cfg.Update.Hostname = cfg.Hostname
