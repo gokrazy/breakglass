@@ -47,35 +47,26 @@ func (bg *bg) startBreakglass() error {
 		return err
 	}
 
-	updateHttpClient, foundMatchingCertificate, updateBaseURL, err := httpclient.For(bg.update, bg.cfg)
+	updateHttpClient, _, updateBaseURL, err := httpclient.For(bg.update, bg.cfg)
 	if err != nil {
 		return err
 	}
 	updateHttpClient.Jar = jar
 
-	remoteScheme, err := httpclient.GetRemoteScheme(updateBaseURL)
-	if remoteScheme == "https" && !bg.insecure {
-		updateBaseURL.Scheme = "https"
-		bg.update.Update = updateBaseURL.String()
-	}
-
-	if updateBaseURL.Scheme != "https" && foundMatchingCertificate {
-		fmt.Printf("\n")
-		fmt.Printf("!!!WARNING!!! Possible SSL-Stripping detected!\n")
-		fmt.Printf("Found certificate for hostname in your client configuration but the host does not offer https!\n")
-		fmt.Printf("\n")
-		if !bg.insecure {
-			log.Fatalf("update canceled: TLS certificate found, but negotiating a TLS connection with the target failed")
-		}
-		fmt.Printf("Proceeding anyway as requested (-insecure).\n")
-	}
-
-	if err != nil {
-		return err
-	}
-
 	form, err := updateHttpClient.Get(updateBaseURL.String() + "status?path=/user/breakglass")
 	if err != nil {
+		if updateBaseURL.Scheme == "https" && bg.insecure {
+			// Try falling back to HTTP
+			bg.cfg.Update.UseTLS = "off"
+			updateHttpClient, _, updateBaseURL, err = httpclient.For(bg.update, bg.cfg)
+			if err != nil {
+				return err
+			}
+			form, err = updateHttpClient.Get(updateBaseURL.String() + "status?path=/user/breakglass")
+			if err != nil {
+				return err
+			}
+		}
 		return err
 	}
 	if form.StatusCode == http.StatusNotFound {
@@ -202,7 +193,7 @@ func breakglass() error {
 		insecure = flag.Bool(
 			"insecure",
 			false,
-			"Ignore TLS stripping detection.")
+			"Fall back to HTTP if HTTPS is configured, but does not work.")
 
 		proxy = flag.Bool(
 			"proxy",

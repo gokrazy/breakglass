@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/gokrazy/gokapi v0.0.0-20250222071133-506fdb322775
 	github.com/gokrazy/gokrazy v0.0.0-20250222061409-bd0bb5f1d0b5
-	github.com/gokrazy/internal v0.0.0-20251205165016-cbfb18ae2684
+	github.com/gokrazy/internal v0.0.0-20251208203110-3c1aa9087c82
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/kr/pty v1.1.8
