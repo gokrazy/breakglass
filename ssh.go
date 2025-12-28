@@ -242,6 +242,9 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
 			return err
 		}
+		if r.TERM != "" {
+			s.env = append(s.env, fmt.Sprintf("TERM=%s", r.TERM))
+		}
 
 		var err error
 		s.ptyf, s.ttyf, err = pty.Open()
