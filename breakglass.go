@@ -6,8 +6,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"flag"
@@ -91,7 +91,7 @@ func loadHostKey(path string) (ssh.Signer, error) {
 }
 
 func createHostKey(path string) (ssh.Signer, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 1024)
+	_, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, err
 	}
