@@ -224,15 +224,12 @@ func breakglass() error {
 	instance := flag.Arg(0)
 	instanceflag.SetInstance(instance)
 
-	cfg, err := config.ApplyInstanceFlag()
+	configJSON := config.InstanceConfigPath()
+	cfg, err := config.ReadFromFile(configJSON)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// best-effort compatibility for old setups
-			cfg = config.NewStruct(instanceflag.Instance())
-		} else {
-			return err
-		}
+		return err
 	}
+	cfg.ApplyEnvironment()
 
 	bg := &bg{
 		cfg:          cfg,
