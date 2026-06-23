@@ -207,7 +207,7 @@ func breakglass() error {
 
 		parentDir = flag.String(
 			"parent_dir",
-			instanceflag.ParentDir(),
+			instanceflag.ParentDirDefault(),
 			"gokrazy parent directory: contains one subdirectory per instance")
 	)
 
