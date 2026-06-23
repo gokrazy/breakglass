@@ -204,6 +204,11 @@ func breakglass() error {
 			"ssh_config",
 			"",
 			"an alternative per-user configuration file for ssh and scp")
+
+		parentDir = flag.String(
+			"parent_dir",
+			instanceflag.ParentDir(),
+			"gokrazy parent directory: contains one subdirectory per instance")
 	)
 
 	flag.Usage = func() {
@@ -222,10 +227,11 @@ func breakglass() error {
 	}
 
 	instance := flag.Arg(0)
-	instanceflag.SetInstance(instance)
-
-	configJSON := config.InstanceConfigPath()
-	cfg, err := config.ReadFromFile(configJSON)
+	configJSON := (&instanceflag.Flags{
+		Parent: *parentDir,
+		Name:   instance,
+	}).InstanceConfigPath()
+	cfg, err := config.ReadFromFile(configJSON, instance)
 	if err != nil {
 		return err
 	}
