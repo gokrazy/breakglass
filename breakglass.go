@@ -1,3 +1,5 @@
+//go:build linux
+
 // breakglass is a SSH/SCP server which unpacks received tar archives
 // and allows to run commands in the unpacked archive.
 package main
@@ -10,6 +12,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -17,6 +20,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/gokrazy/gokapi"
@@ -24,6 +28,7 @@ import (
 	"github.com/gokrazy/gokrazy"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -168,6 +173,156 @@ func initMOTD() error {
 	return nil
 }
 
+// reconcileListeners reconciles the listeners for the given port.
+// port is the port to listen on.
+// accept is a function that accepts a net.Listener.
+// listened is a map of addresses to listeners.
+// listenedMu is a mutex to protect the listened map.
+func reconcileListeners(port string, accept func(net.Listener), listened map[string]net.Listener, listenedMu *sync.Mutex) {
+	// Get the list of private interface addresses.
+	// We want to listen on all private interface addresses.
+	addrs, err := gokrazy.PrivateInterfaceAddrs()
+	if err != nil {
+		log.Printf("PrivateInterfaceAddrs: %v", err)
+		return
+	}
+
+	// Create a set of desired addresses.
+	desired := make(map[string]bool, len(addrs))
+	for _, addr := range addrs {
+		desired[addr] = true
+	}
+
+	listenedMu.Lock()
+	defer listenedMu.Unlock()
+
+	// Remove listeners that are no longer in the desired set.
+	for addr, listener := range listened {
+		if desired[addr] {
+			continue
+		}
+		if err := listener.Close(); err != nil {
+			log.Printf("close %s: %v", net.JoinHostPort(addr, port), err)
+		}
+		delete(listened, addr)
+		log.Printf("stopped listening on %s", net.JoinHostPort(addr, port))
+	}
+
+	// Start new listeners for addresses that are in the desired set.
+	for addr := range desired {
+		if _, ok := listened[addr]; ok {
+			continue
+		}
+		hostport := net.JoinHostPort(addr, port)
+		listener, err := net.Listen("tcp", hostport)
+		if err != nil {
+			// If the error is a transient link-local bind error, we will retry,
+			// as it is likely that the interface is not yet ready.
+			if isTransientLinkLocalBindError(addr, err) {
+				log.Printf("listen %s: link-local address not ready yet, will retry", hostport)
+				continue
+			}
+			log.Printf("listen %s: %v", hostport, err)
+			continue
+		}
+		listened[addr] = listener
+		fmt.Printf("listening on %s\n", hostport)
+		go accept(listener)
+	}
+}
+
+// isTransientLinkLocalBindError checks if the error is a transient link-local bind error.
+func isTransientLinkLocalBindError(addr string, err error) bool {
+	ip := net.ParseIP(addr)
+	if ip == nil || !ip.IsLinkLocalUnicast() {
+		return false
+	}
+
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return errors.Is(opErr.Err, syscall.EADDRNOTAVAIL)
+	}
+	return errors.Is(err, syscall.EADDRNOTAVAIL)
+}
+
+// watchNetlink watches the netlink interface for address changes and calls onAddressChange when they occur.
+func watchNetlink(onAddressChange func()) {
+	fd, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_RAW, unix.NETLINK_ROUTE)
+	if err != nil {
+		log.Printf("netlink socket: %v", err)
+		return
+	}
+	defer unix.Close(fd)
+
+	sa := &unix.SockaddrNetlink{
+		Family: unix.AF_NETLINK,
+		// RTNLGRP_* values are group IDs, but nl_groups expects a bitmask.
+		Groups: (1 << (unix.RTNLGRP_IPV4_IFADDR - 1)) | (1 << (unix.RTNLGRP_IPV6_IFADDR - 1)),
+	}
+	if err := unix.Bind(fd, sa); err != nil {
+		log.Printf("netlink bind: %v", err)
+		return
+	}
+
+	buf := make([]byte, 1<<16)
+	for {
+		n, _, err := unix.Recvfrom(fd, buf, 0)
+		if err != nil {
+			log.Printf("netlink recvfrom: %v", err)
+			return
+		}
+		msgs, err := syscall.ParseNetlinkMessage(buf[:n])
+		if err != nil {
+			log.Printf("netlink parse: %v", err)
+			continue
+		}
+		if shouldReconcileListeners(msgs) {
+			onAddressChange()
+		}
+	}
+}
+
+// shouldReconcileListeners checks if the netlink messages indicate that the listeners should be reconciled.
+func shouldReconcileListeners(msgs []syscall.NetlinkMessage) bool {
+	for _, msg := range msgs {
+		switch msg.Header.Type {
+		case unix.RTM_NEWADDR, unix.RTM_DELADDR:
+			return true
+		}
+	}
+	return false
+}
+
+// accept accepts incoming connections and handles them using the provided SSH server configuration.
+func accept(config *ssh.ServerConfig) func(net.Listener) {
+	return func(listener net.Listener) {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				if errors.Is(err, net.ErrClosed) {
+					return
+				}
+				log.Printf("accept: %v", err)
+				continue
+			}
+
+			go func(conn net.Conn) {
+				_, chans, reqs, err := ssh.NewServerConn(conn, config)
+				if err != nil {
+					log.Printf("handshake: %v", err)
+					return
+				}
+
+				go ssh.DiscardRequests(reqs)
+
+				for newChannel := range chans {
+					handleChannel(newChannel)
+				}
+			}(conn)
+		}
+	}
+}
+
 func main() {
 	flag.Parse()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -235,47 +390,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	accept := func(listener net.Listener) {
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				log.Printf("accept: %v", err)
-				continue
-			}
-
-			go func(conn net.Conn) {
-				_, chans, reqs, err := ssh.NewServerConn(conn, config)
-				if err != nil {
-					log.Printf("handshake: %v", err)
-					return
-				}
-
-				// discard all out of band requests
-				go ssh.DiscardRequests(reqs)
-
-				for newChannel := range chans {
-					handleChannel(newChannel)
-				}
-			}(conn)
-		}
-	}
-
-	addrs, err := gokrazy.PrivateInterfaceAddrs()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, addr := range addrs {
-		hostport := net.JoinHostPort(addr, *port)
-		listener, err := net.Listen("tcp", hostport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("listening on %s\n", hostport)
-		go accept(listener)
-	}
-
 	fmt.Printf("host key fingerprint: %s\n", ssh.FingerprintSHA256(signer.PublicKey()))
+
+	listened := make(map[string]net.Listener)
+	var listenedMu sync.Mutex
+
+	// Initial reconcile to start listening on all private interface addresses.
+	reconcileListeners(*port, accept(config), listened, &listenedMu)
+
+	// Watch for address changes and reconcile listeners accordingly.
+	go watchNetlink(func() {
+		reconcileListeners(*port, accept(config), listened, &listenedMu)
+	})
 
 	select {}
 }

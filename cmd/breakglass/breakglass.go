@@ -1,3 +1,5 @@
+//go:build linux
+
 // Binary breakglass is a wrapper around SSH, starting breakglass on the
 // destination gokrazy installation <hostname> first.
 //
