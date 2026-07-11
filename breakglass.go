@@ -46,6 +46,10 @@ var (
 	forwarding = flag.String("forward",
 		"",
 		"allow port forwarding. Use `loopback` for loopback interfaces and `private-network` for private networks")
+
+	insecureStartOnBoot = flag.Bool("insecure-start-on-boot",
+		false,
+		"start breakglass on boot (this is considered insecure: breakglass opens an SSH server, this makes your instance accessible from the start)")
 )
 
 func loadAuthorizedKeys(path string) (map[string]bool, error) {
@@ -172,7 +176,11 @@ func main() {
 	flag.Parse()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	gokrazy.DontStartOnBoot()
+	if !*insecureStartOnBoot {
+		gokrazy.DontStartOnBoot()
+	} else {
+		gokrazy.WaitForClock()
+	}
 
 	authorizedKeys, err := loadAuthorizedKeys(*authorizedKeysPath)
 	if err != nil {
