@@ -295,14 +295,15 @@ func (s *session) request(ctx context.Context, req *ssh.Request) error {
 		}
 
 		exitCode := uint32(0)
-		if err := srv.Serve(); err != nil {
+		err = srv.Serve()
+		if err == nil || err == io.EOF {
+			// Serve returns nil when the client closes the connection
+			// cleanly (io.EOF prior to pkg/sftp v1.13.6).
+			defer srv.Close()
+			log.Printf("sftp client exited session")
+		} else {
 			log.Printf("(sftp.Server).Serve(): %v", err)
-			if err == io.EOF {
-				defer srv.Close()
-				log.Printf("sftp client exited session")
-			} else {
-				exitCode = 1
-			}
+			exitCode = 1
 		}
 
 		// Special case for breakglass usage: unpack all .tar files that were
